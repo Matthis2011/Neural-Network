@@ -2,11 +2,13 @@
 
 import copy
 import random
+import time
 from pathlib import Path
 
 import numpy as np
 
 import neural_network
+from terminal_colors import colorize
 
 PATH = Path(__file__).parent / "models" / "connect_four_model.json"
 
@@ -251,7 +253,14 @@ def evaluate_fitness(player_1_index, player_2_index, fitnesses, winner):
         fitnesses[player_1_index if winner == 1 else player_2_index] += 1
 
 
-def ai_game_loop(population, population_size, pool, first_player, fitnesses):
+def ai_game_loop(
+    population,
+    population_size,
+    pool,
+    first_player,
+    fitnesses,
+    progress_callback=None,
+):
     """Pair every neural network against another network and run the game."""
     for i in range(0, population_size, 2):
         first_player_index = pool[i]
@@ -262,9 +271,11 @@ def ai_game_loop(population, population_size, pool, first_player, fitnesses):
             first_player,
         )
         evaluate_fitness(first_player_index, second_player_index, fitnesses, result)
+        if progress_callback is not None:
+            progress_callback(1)
 
 
-def select_parents(population=None):
+def select_parents(population=None, progress_callback=None):
     """Let the neural_networks play against each other and choose the best of them."""
     population_size = 100
     fitnesses = [0 for _ in range(population_size)]
@@ -278,8 +289,8 @@ def select_parents(population=None):
     pool = list(range(population_size))
     for _ in range(10):
         random.shuffle(pool)
-        ai_game_loop(population, population_size, pool, 1, fitnesses)
-        ai_game_loop(population, population_size, pool, 2, fitnesses)
+        ai_game_loop(population, population_size, pool, 1, fitnesses, progress_callback)
+        ai_game_loop(population, population_size, pool, 2, fitnesses, progress_callback)
     top_ten = sorted(pool, key=lambda i: fitnesses[i], reverse=True)[:10]
     new_population = [copy.deepcopy(population[top_ten[i]]) for i in range(2)]
     return top_ten, new_population, population
@@ -368,17 +379,66 @@ def save_parameters(network, model_path=PATH):
 
 
 def evolutionary_training(generations, model_path=PATH):
-    """Train the AI evolutionarily and save the best resulting network."""
+    """Train the AI evolutionarily and report game progress."""
     if generations < 1:
         raise ValueError("Generations must be at least 1.")
 
+    total_games = (generations + 1) * 1000
+    completed_games = 0
+    start_time = time.monotonic()
+    last_display_state = None
+    bar_width = 30
+
+    def report_progress(increment, phase):
+        nonlocal completed_games, last_display_state
+
+        completed_games = min(completed_games + increment, total_games)
+        elapsed = max(time.monotonic() - start_time, 0.0)
+        fraction = completed_games / total_games
+        percent = int(fraction * 100)
+        eta = elapsed * (total_games - completed_games) / completed_games
+
+        # Refresh when the percentage or phase changes.
+        display_state = (percent, phase)
+        if display_state == last_display_state and completed_games < total_games:
+            return
+
+        filled = int(bar_width * fraction)
+        bar = "#" * filled + "-" * (bar_width - filled)
+        elapsed_text = f"{int(elapsed) // 60:02d}:{int(elapsed) % 60:02d}"
+        eta_text = f"{int(eta) // 60:02d}:{int(eta) % 60:02d}"
+
+        progress_text = f"{completed_games}/{total_games} games"
+        timing_text = f"Elapsed: {elapsed_text} | ETA: {eta_text}"
+
+        print(
+            f"\r{colorize(f'[{bar}]', 'accent')} "
+            f"{colorize(f'{percent:3d}%', 'success' if percent == 100 else 'header')} "
+            f"| {colorize(progress_text, 'text')} "
+            f"| {colorize(timing_text, 'muted')} "
+            f"| {colorize(phase, 'header', bold=True)}",
+            end="",
+            flush=True,
+        )
+        last_display_state = display_state
+
     population = read_parameters(model_path)
-    for _ in range(generations):
-        top_ten, new_population, population = select_parents(population)
+
+    for generation in range(1, generations + 1):
+        phase = f"Generation {generation}/{generations}"
+        top_ten, new_population, population = select_parents(
+            population,
+            progress_callback=lambda increment: report_progress(increment, phase),
+        )
         for _ in range(98):
             new_population.append(create_child(top_ten, population))
         population = new_population
 
     # Evaluate the final generation and save its best individual.
-    top_ten, _, population = select_parents(population)
+    phase = "final evaluation"
+    top_ten, _, population = select_parents(
+        population,
+        progress_callback=lambda increment: report_progress(increment, phase),
+    )
+    print()
     save_parameters(population[top_ten[0]], model_path)
