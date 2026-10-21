@@ -528,6 +528,21 @@ def save_training_run(name, run):
         json.dump(history, file, indent=4)
 
 
+def get_evolutionary_time_estimate(name, architecture):
+    """Return the median duration per generation from recent comparable runs."""
+    comparable_runs = [
+        run
+        for run in load_training_history().get(name, [])
+        if run.get("training_method") == "evolutionary"
+        and run.get("architecture") == architecture
+        and (run.get("seconds_per_generation") or 0) > 0
+    ]
+    recent_times = [run["seconds_per_generation"] for run in comparable_runs[-10:]]
+    if not recent_times:
+        return None, 0
+    return median(recent_times), len(recent_times)
+
+
 def get_epoch_time_estimate(name, config, batch_size):
     """Return median seconds per epoch from recent comparable training runs."""
     dataset_path = config["data_file"]
