@@ -6,6 +6,7 @@ import shlex
 import textwrap
 from dataclasses import dataclass
 
+import connect_four
 from model_manager_models import (
     continue_training,
     create_new_model,
@@ -477,11 +478,41 @@ def handle_train(context: ShellContext) -> ModelSelection | None:
     if context.arguments in (["--help"], ["-h"]):
         print_help("train")
         return context.selected
+
     if context.selected is None:
         print(colorize("Enter a model directory first with 'cd <index>'.", "warning"))
         return context.selected
 
     name, config = context.selected
+
+    # Evolutionary training for models that use this training method.
+    if config.get("training_method") == "evolutionary":
+        if context.arguments not in ([], ["--evolutionary"]):
+            print(colorize("Usage: train [--evolutionary]", "error"))
+            return context.selected
+
+        while True:
+            try:
+                raw_generations = input("Number of generations: ").strip()
+            except EOFError:
+                print(colorize("\nTraining cancelled.", "warning"))
+                return context.selected
+
+            try:
+                generations = positive_int(raw_generations)
+                break
+            except argparse.ArgumentTypeError as error:
+                print(colorize(f"Invalid generation count: {error}", "error"))
+
+        if confirm_training():
+            try:
+                connect_four.evolutionary_training(generations)
+            except (OSError, ValueError, RuntimeError) as error:
+                print(colorize(f"Evolutionary training failed: {error}", "error"))
+
+        return context.selected
+
+    # Existing training flow for all other models.
     preferences = load_training_preferences(name)
     options = (
         get_interactive_training_options(name, preferences)
@@ -490,16 +521,19 @@ def handle_train(context: ShellContext) -> ModelSelection | None:
     )
     if options is None:
         return context.selected
+
     try:
         plan = prepare_training_plan(name, config, options, preferences)
     except (OSError, ValueError) as error:
         print(colorize(f"Training setup failed: {error}", "error"))
         return context.selected
+
     if plan is not None and (options.yes or confirm_training()):
         try:
             continue_training(name, config, plan)
         except (OSError, ValueError) as error:
             print(colorize(f"Training failed: {error}", "error"))
+
     return context.selected
 
 

@@ -348,25 +348,48 @@ def mutate_network(network):
     return network
 
 
-def read_parameters():
-    """Read the current paramteres form .json file."""
-    return []
+def read_parameters(model_path=PATH):
+    """Load a saved network and initialize a population around it."""
+    path = Path(model_path)
+    if not path.is_file():
+        return None
+
+    network = neural_network.NeuralNetwork.load(path)
+    if (
+        network.input_size,
+        network.hidden_sizes,
+        network.output_size,
+    ) != (42, [64, 64], 7):
+        raise ValueError("Saved model has an incompatible architecture.")
+
+    population = [network]
+    for _ in range(99):
+        population.append(mutate_network(copy.deepcopy(network)))
+    return population
 
 
-def save_parameters():
-    """Saves the current parameters as a .json file."""
-    return
+def save_parameters(network, model_path=PATH):
+    """Save the best network using the existing model JSON format."""
+    path = Path(model_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    network.save(path)
 
 
-def evolutionary_training(generations):
-    """Train the ai using the principles of evolution."""
-    population = read_parameters()
+def evolutionary_training(generations, model_path=PATH):
+    """Train the AI evolutionarily and save the best resulting network."""
+    if generations < 1:
+        raise ValueError("Generations must be at least 1.")
+
+    population = read_parameters(model_path)
     for _ in range(generations):
         top_ten, new_population, population = select_parents(population)
         for _ in range(98):
             new_population.append(create_child(top_ten, population))
         population = new_population
-    save_parameters()
+
+    # Evaluate the final generation and save its best individual.
+    top_ten, _, population = select_parents(population)
+    save_parameters(population[top_ten[0]], model_path)
 
 
 if __name__ == "__main__":
