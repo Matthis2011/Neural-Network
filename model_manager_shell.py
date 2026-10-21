@@ -97,6 +97,9 @@ Loss targets can combine with -e/--e and/or -t/--t; limits stop training first.
 Time budgets are checked at epoch boundaries. Comparable run history estimates
 the duration or target epoch count; without it, timed runs learn from the first
 epoch and target-only runs use a 1,000-epoch safety limit.
+For models configured with training_method="evolutionary",
+the command asks for the number of generations and confirmation.
+Standard training options do not apply to these models.
 
 Examples
   train
@@ -162,6 +165,9 @@ Run a model
   predict    Run the selected model on input data
   use        Alias for predict
 
+For Tic-Tac-Toe and Connect Four, this starts an
+interactive game against the selected model.
+
 Enter a model directory with 'cd <index>' first.
 """,
         "back": """
@@ -208,6 +214,8 @@ Commands
   train                Review saved settings or train with explicit options
                        (validation, reproducible seeds, and checkpoints supported)
   exit, quit           Leave the model manager
+  back, cd ~           Return to the user prompt
+  history <count>      Show recent training runs for the selected model
 
 """
     )
