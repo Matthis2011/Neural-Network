@@ -1,0 +1,110 @@
+{
+    "Kreis-Klassifikation": {
+        "data_file": "circle_point_classification_training.json",
+        "model_file": "circle_point_classification_model.json",
+        "input_size": 3,
+        "output_size": 3,
+        "hidden_sizes": [
+            8,
+            8
+        ],
+        "input_scale": 1,
+        "class_names": [
+            "Klasse 0",
+            "Klasse 1",
+            "Klasse 2"
+        ]
+    },
+    "Primzahl-Klassifikation": {
+        "data_file": "prime_training.json",
+        "model_file": "prime_model.json",
+        "input_size": 1,
+        "output_size": 2,
+        "hidden_sizes": [
+            16,
+            16
+        ],
+        "input_scale": 9999,
+        "class_names": [
+            "keine Primzahl",
+            "Primzahl"
+        ]
+    },
+    "odd_or_even_model": {
+        "data_file": "odd_or_even_training.json",
+        "model_file": "odd_or_even_model.json",
+        "input_size": 1,
+        "output_size": 2,
+        "hidden_sizes": [
+            10,
+            10,
+            10
+        ],
+        "input_scale": 20,
+        "class_names": [
+            "odd",
+            "even"
+        ]
+    },
+    "Odd-Even-Diagnose-Bin\u00e4r": {
+        "data_file": "odd_even_binary_training.json",
+        "model_file": "odd_even_binary_model.json",
+        "input_size": 10,
+        "output_size": 2,
+        "hidden_sizes": [
+            16,
+            16
+        ],
+        "input_scale": 1,
+        "input_mode": "binary",
+        "class_names": [
+            "ungerade",
+            "gerade"
+        ]
+    },
+    "Tic-Tac-Toe-KI": {
+        "data_file": "tic_tac_toe_training_data.json",
+        "model_file": "tic_tac_toe_model.json",
+        "input_size": 9,
+        "output_size": 9,
+        "hidden_sizes": [
+            32,
+            32
+        ],
+        "input_scale": 1,
+        "input_mode": "tic_tac_toe",
+        "class_names": [
+            "Feld 0",
+            "Feld 1",
+            "Feld 2",
+            "Feld 3",
+            "Feld 4",
+            "Feld 5",
+            "Feld 6",
+            "Feld 7",
+            "Feld 8"
+        ]
+    },
+    "Connect-Four-KI": {
+        "data_file": "",
+        "model_file": "connect_four_model.json",
+        "input_size": 42,
+        "output_size": 7,
+        "hidden_sizes": [
+            64,
+            64
+        ],
+        "input_scale": 1,
+        "input_mode": "connect_four",
+        "training_method": "evolutionary",
+        "class_names": [
+            "Spalte 0",
+            "Spalte 1",
+            "Spalte 2",
+            "Spalte 3",
+            "Spalte 4",
+            "Spalte 5",
+            "Spalte 6"
+        ]
+    }
+}
