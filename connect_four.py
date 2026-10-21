@@ -378,7 +378,11 @@ def save_parameters(network, model_path=PATH):
     network.save(path)
 
 
-def evolutionary_training(generations, model_path=PATH):
+def evolutionary_training(
+    generations,
+    model_path=PATH,
+    seconds_per_generation=None,
+):
     """Train the AI evolutionarily and report game progress."""
     if generations < 1:
         raise ValueError("Generations must be at least 1.")
@@ -396,7 +400,26 @@ def evolutionary_training(generations, model_path=PATH):
         elapsed = max(time.monotonic() - start_time, 0.0)
         fraction = completed_games / total_games
         percent = int(fraction * 100)
-        eta = elapsed * (total_games - completed_games) / completed_games
+        remaining_games = total_games - completed_games
+        remaining_generations = remaining_games / 1000
+
+        observed_eta = (
+            elapsed * remaining_games / completed_games if completed_games > 0 else 0
+        )
+
+        historical_eta = (
+            seconds_per_generation * remaining_generations
+            if seconds_per_generation is not None
+            else None
+        )
+
+        if historical_eta is None:
+            eta = observed_eta
+        elif elapsed < 10:
+            eta = historical_eta
+        else:
+            weight = min(elapsed / 60, 1.0)
+            eta = historical_eta * (1 - weight) + observed_eta * weight
 
         # Refresh when the percentage or phase changes.
         display_state = (percent, phase)

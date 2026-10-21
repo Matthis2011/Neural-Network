@@ -1558,5 +1558,15 @@
             "dataset_sha256": "b06d5adf8956f9c4cab65c89106f2e7ea426a28aedd5638846b1bdaa613af713",
             "checkpoint_file": null
         }
+    ],
+    "Connect-Four-KI": [
+        {
+            "started_at": "2026-10-22T00:03:33+02:00",
+            "training_method": "evolutionary",
+            "architecture": "42-64-64-7",
+            "generations_requested": 3,
+            "duration_seconds": 26.53121347400156,
+            "seconds_per_generation": 8.843737824667187
+        }
     ]
 }

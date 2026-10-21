@@ -4,7 +4,9 @@ import argparse
 import math
 import shlex
 import textwrap
+import time
 from dataclasses import dataclass
+from datetime import datetime
 
 import connect_four
 from model_manager_models import (
@@ -29,6 +31,7 @@ from model_manager_training import (
     estimate_epochs_for_budget,
     format_duration,
     get_epoch_time_estimate,
+    get_evolutionary_time_estimate,
     get_target_epoch_estimate,
     load_configs,
     load_training_history,
@@ -36,6 +39,7 @@ from model_manager_training import (
     model_path_for,
     parse_training_options,
     positive_int,
+    save_training_run,
     validate_checkpoint_paths,
 )
 from neural_network import LossReductionTarget
@@ -514,8 +518,58 @@ def handle_train(context: ShellContext) -> ModelSelection | None:
                 print(colorize(f"Invalid generation count: {error}", "error"))
 
         if confirm_training():
+            architecture = "-".join(
+                str(size)
+                for size in (
+                    config["input_size"],
+                    *config["hidden_sizes"],
+                    config["output_size"],
+                )
+            )
+            historical_seconds, historical_runs = get_evolutionary_time_estimate(
+                name, architecture
+            )
+
+            if historical_seconds is not None:
+                print(
+                    colorize(
+                        f"Historical estimate: "
+                        f"{format_duration(historical_seconds * generations)} "
+                        f"from {historical_runs} comparable run(s).",
+                        "accent",
+                    )
+                )
+            else:
+                print(
+                    colorize(
+                        "No historical Connect Four runtime yet; "
+                        "the ETA will adapt to this run.",
+                        "muted",
+                    )
+                )
+
+            started_at = datetime.now().astimezone().isoformat(timespec="seconds")
+            start_time = time.monotonic()
+
             try:
-                connect_four.evolutionary_training(generations)
+                connect_four.evolutionary_training(
+                    generations,
+                    seconds_per_generation=historical_seconds,
+                )
+                duration = time.monotonic() - start_time
+
+                save_training_run(
+                    name,
+                    {
+                        "started_at": started_at,
+                        "training_method": "evolutionary",
+                        "architecture": architecture,
+                        "generations_requested": generations,
+                        "duration_seconds": duration,
+                        "seconds_per_generation": duration / generations,
+                    },
+                )
+                print("Training runtime saved to history.")
             except (OSError, ValueError, RuntimeError) as error:
                 print(colorize(f"Evolutionary training failed: {error}", "error"))
 
@@ -627,33 +681,69 @@ def handle_history(context: ShellContext) -> ModelSelection | None:
     if context.selected is None:
         print(colorize("Enter a model directory first with 'cd <index>'.", "warning"))
         return context.selected
+
     if len(context.arguments) > 1:
         print(colorize("Usage: history [count]", "error"))
         return context.selected
+
     try:
         count = positive_int(context.arguments[0]) if context.arguments else 10
     except argparse.ArgumentTypeError as error:
         print(
-            colorize(f"Invalid history count: {error}\nUsage: history [count]", "error")
+            colorize(
+                f"Invalid history count: {error}\nUsage: history [count]",
+                "error",
+            )
         )
         return context.selected
 
     name = context.selected[0]
     runs = load_training_history().get(name, [])[-count:]
+
     if not runs:
         print(colorize(f"No training history for '{name}' yet.", "warning"))
         return context.selected
+
     print(colorize(f"\nRecent training runs for {name}", "header", bold=True))
+
     for run in runs:
         duration = format_duration(run["duration_seconds"])
+
+        if run.get("training_method") == "evolutionary":
+            seconds_per_generation = run.get("seconds_per_generation")
+            pace = (
+                f"{seconds_per_generation:.2f}s/evaluation"
+                if seconds_per_generation is not None
+                else "n/a"
+            )
+
+            print(
+                colorize(
+                    f"  {run.get('started_at', 'n/a')} | "
+                    f"{run.get('generations_requested', '?')} generations | "
+                    f"{duration} ({pace})",
+                    "accent",
+                )
+            )
+            print(
+                colorize(
+                    f"    method evolutionary | "
+                    f"architecture {run.get('architecture', 'n/a')}",
+                    "muted",
+                )
+            )
+            continue
+
         seconds_per_epoch = run.get("seconds_per_epoch")
         pace = (
             f"{seconds_per_epoch:.2f}s/epoch"
             if seconds_per_epoch is not None
             else "n/a"
         )
+
         reduction = run.get("loss_reduction_percent")
         reduction_text = f"{reduction:+.2f}%" if reduction is not None else "n/a"
+
         print(
             colorize(
                 f"  {run['started_at']} | {run['epochs_completed']} epochs | "
@@ -670,15 +760,19 @@ def handle_history(context: ShellContext) -> ModelSelection | None:
                 "accent",
             )
         )
+
         print_history_training_extras(run)
+
         target_reduction = run.get("target_loss_reduction")
         target_percent = run.get("target_loss_reduction_percent")
+
         if target_reduction is not None:
             target_text = f"loss reduction >= {target_reduction:g}"
         elif target_percent is not None:
             target_text = f"loss reduction >= {target_percent:g}%"
         else:
             target_text = None
+
         if target_text is not None:
             print(
                 colorize(
@@ -687,6 +781,7 @@ def handle_history(context: ShellContext) -> ModelSelection | None:
                     "success" if run.get("target_reached") else "warning",
                 )
             )
+
         if run.get("time_budget_seconds") is not None:
             print(
                 colorize(
@@ -695,6 +790,7 @@ def handle_history(context: ShellContext) -> ModelSelection | None:
                     "warning" if run["time_budget_reached"] else "muted",
                 )
             )
+
     return context.selected
 
 
