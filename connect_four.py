@@ -218,7 +218,6 @@ def play_game(network_1, network_2, first_player=1):
     current_player = first_player
 
     while True:
-        draw_game_board(game_board)
         network = networks[current_player]
         encoded_board = encode_board(game_board, current_player)
         column = ai_choice(network, encoded_board, game_board)
@@ -236,7 +235,6 @@ def play_game(network_1, network_2, first_player=1):
         someone_has_won, winner = declare_winner(game_board)
 
         if someone_has_won:
-            draw_game_board(game_board)
             if winner == "Draw":
                 return 0
             return int(winner)
@@ -263,13 +261,7 @@ def ai_game_loop(population, population_size, pool, first_player, fitnesses):
             population[second_player_index],
             first_player,
         )
-        print(str(result))
         evaluate_fitness(first_player_index, second_player_index, fitnesses, result)
-        print(
-            str(fitnesses[first_player_index])
-            + "\n"
-            + str(fitnesses[second_player_index])
-        )
 
 
 def select_parents(population=None):
@@ -390,8 +382,3 @@ def evolutionary_training(generations, model_path=PATH):
     # Evaluate the final generation and save its best individual.
     top_ten, _, population = select_parents(population)
     save_parameters(population[top_ten[0]], model_path)
-
-
-if __name__ == "__main__":
-    evolutionary_training(int(input("enter number of populations: ")))
-    # main()

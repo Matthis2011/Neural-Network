@@ -1,0 +1,8 @@
+[lint]
+select = ["E", "F", "I", "PL", "B", "SIM"]
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "E741"]
+
+[lint.per-file-ignores]
+# This unfinished game is intentionally left unchanged; revisit its branching
+# complexity when its gameplay implementation is ready for a refactor.
+"connect_four.py" = ["PLR0912"]

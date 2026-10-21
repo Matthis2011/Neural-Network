@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
+import connect_four
 import tic_tac_toe
 from model_manager_training import (
     DATA_DIR,
@@ -514,6 +515,9 @@ def predict(network, config):
     """Collect model-specific input and print the predicted class probabilities."""
     if config.get("input_mode") == "tic_tac_toe":
         play_tic_tac_toe(network)
+        return
+    if config.get("input_mode") == "connect_four":
+        connect_four.main()
         return
     if config.get("input_mode") == "binary":
         number = ask_int("Number to classify: ", 1)

@@ -70,7 +70,7 @@ def print_help(topic=None):
 Training
   train                             Interactively review and adjust saved settings
   train -e <n>, --e=<n>             Train for a fixed number of epochs
-  train -t <time>, --t=<time>       Train up to a time budget (e.g. 10m, 1h)
+  train -t <time>, --t=<time>       Train up to a time budget (e.g. 1"--evolutionary"0m, 1h)
   train -r <loss>, --r=<loss>       Stop after reducing loss by this amount
   train --reduce-percent=<pct>      Stop after reducing loss by this percentage
   -b <size>, --b=<size>             Batch size (defaults to this model's last run)
@@ -82,6 +82,7 @@ Training
   --seed=<integer>                  Reproduce the data split and epoch shuffling
   --checkpoint=<file>               Save a resumable checkpoint after each epoch
   --resume=<file>                   Resume a compatible checkpoint
+  --evolutionary                    Train the model (if supported) using evolutionary algorithms.
 
 Long option names are also available, such as --epochs=500 and --time=10m.
 Validation is opt-in; for example, --validation-split=0.2 reserves 20% of the
