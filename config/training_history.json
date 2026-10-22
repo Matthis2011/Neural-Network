@@ -1591,6 +1591,38 @@
             "generations_requested": 10,
             "duration_seconds": 56.21480408499883,
             "seconds_per_generation": 5.621480408499883
+        },
+        {
+            "started_at": "2026-10-22T12:18:36+02:00",
+            "training_method": "evolutionary",
+            "architecture": "42-64-64-7",
+            "generations_requested": 100,
+            "duration_seconds": 444.1035424840011,
+            "seconds_per_generation": 4.441035424840011
+        },
+        {
+            "started_at": "2026-10-22T12:28:26+02:00",
+            "training_method": "evolutionary",
+            "architecture": "42-64-64-7",
+            "generations_requested": 150,
+            "duration_seconds": 714.1638421299995,
+            "seconds_per_generation": 4.761092280866663
+        },
+        {
+            "started_at": "2026-10-22T12:48:44+02:00",
+            "training_method": "evolutionary",
+            "architecture": "42-64-64-7",
+            "generations_requested": 150,
+            "duration_seconds": 792.4497917379995,
+            "seconds_per_generation": 5.282998611586663
+        },
+        {
+            "started_at": "2026-10-22T13:03:15+02:00",
+            "training_method": "evolutionary",
+            "architecture": "42-64-64-7",
+            "generations_requested": 500,
+            "duration_seconds": 2687.828576766,
+            "seconds_per_generation": 5.375657153532
         }
     ]
 }
