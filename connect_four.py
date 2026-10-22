@@ -1,7 +1,10 @@
 """A simple console based connect four game."""
 
 import copy
+import json
+import os
 import random
+import tempfile
 import time
 from pathlib import Path
 
@@ -11,6 +14,7 @@ import neural_network
 from terminal_colors import colorize
 
 PATH = Path(__file__).parent / "models" / "connect_four_model.json"
+POPULATION_PATH = Path(__file__).parent / "models" / "connect_four_population.json"
 
 
 def main() -> None:
@@ -276,9 +280,10 @@ def ai_game_loop(
 
 
 def select_parents(population=None, progress_callback=None):
-    """Let the neural_networks play against each other and choose the best of them."""
+    """Evaluate the population and select the top ten parents."""
     population_size = 100
     fitnesses = [0 for _ in range(population_size)]
+
     if population is None:
         population = [
             neural_network.NeuralNetwork(
@@ -286,14 +291,24 @@ def select_parents(population=None, progress_callback=None):
             )
             for _ in range(population_size)
         ]
+
     pool = list(range(population_size))
+
     for _ in range(10):
         random.shuffle(pool)
         ai_game_loop(population, population_size, pool, 1, fitnesses, progress_callback)
         ai_game_loop(population, population_size, pool, 2, fitnesses, progress_callback)
-    top_ten = sorted(pool, key=lambda i: fitnesses[i], reverse=True)[:10]
-    new_population = [copy.deepcopy(population[top_ten[i]]) for i in range(2)]
-    return top_ten, new_population, population
+
+    top_ten = sorted(
+        range(population_size),
+        key=lambda i: fitnesses[i],
+        reverse=True,
+    )[:10]
+
+    # Only the two best networks survive unchanged.
+    new_population = [copy.deepcopy(population[index]) for index in top_ten[:2]]
+
+    return top_ten, new_population, population, fitnesses
 
 
 def create_child(top_ten, population):
@@ -352,12 +367,52 @@ def mutate_network(network):
 
 
 def read_parameters(model_path=PATH):
-    """Load a saved network and initialize a population around it."""
+    """Load the saved top ten and create an initial population."""
     path = Path(model_path)
+    population_path = path.with_name("connect_four_population.json")
+
+    if population_path.is_file():
+        with population_path.open("r", encoding="utf-8") as file:
+            saved_data = json.load(file)
+
+        if (
+            not isinstance(saved_data, dict)
+            or saved_data.get("version") != 1
+            or not isinstance(saved_data.get("networks"), list)
+            or len(saved_data["networks"]) != 10
+        ):
+            raise ValueError("Saved Connect Four population is invalid.")
+
+        saved_networks = []
+
+        for network_data in saved_data["networks"]:
+            network = neural_network.NeuralNetwork(
+                input_size=42,
+                hidden_sizes=[64, 64],
+                output_size=7,
+            )
+            network.load_dict(network_data)
+            saved_networks.append(network)
+
+        # Keep the previous run's top two as the initial elite.
+        population = [
+            copy.deepcopy(saved_networks[0]),
+            copy.deepcopy(saved_networks[1]),
+        ]
+
+        # Breed the other 98 individuals from all ten saved parents.
+        parent_indices = list(range(10))
+        for _ in range(98):
+            population.append(create_child(parent_indices, saved_networks))
+
+        return population
+
+    # Backward-compatible fallback for an existing champion model.
     if not path.is_file():
         return None
 
     network = neural_network.NeuralNetwork.load(path)
+
     if (
         network.input_size,
         network.hidden_sizes,
@@ -366,8 +421,10 @@ def read_parameters(model_path=PATH):
         raise ValueError("Saved model has an incompatible architecture.")
 
     population = [network]
+
     for _ in range(99):
         population.append(mutate_network(copy.deepcopy(network)))
+
     return population
 
 
@@ -376,6 +433,38 @@ def save_parameters(network, model_path=PATH):
     path = Path(model_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     network.save(path)
+
+
+def save_population(top_ten, population, fitnesses, model_path=PATH):
+    """Atomically save the ten best networks for the next training run."""
+    path = Path(model_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    population_path = path.with_name("connect_four_population.json")
+
+    saved_data = {
+        "version": 1,
+        "fitnesses": [fitnesses[index] for index in top_ten],
+        "networks": [population[index].to_dict() for index in top_ten],
+    }
+
+    descriptor, temporary_path = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=".connect-four-population-",
+        suffix=".tmp",
+    )
+
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as file:
+            json.dump(saved_data, file, indent=2, allow_nan=False)
+            file.flush()
+            os.fsync(file.fileno())
+
+        os.replace(temporary_path, population_path)
+
+    except Exception:
+        if os.path.exists(temporary_path):
+            os.unlink(temporary_path)
+        raise
 
 
 def evolutionary_training(
@@ -449,19 +538,22 @@ def evolutionary_training(
 
     for generation in range(1, generations + 1):
         phase = f"Generation {generation}/{generations}"
-        top_ten, new_population, population = select_parents(
+        top_ten, new_population, population, _ = select_parents(
             population,
             progress_callback=lambda increment: report_progress(increment, phase),
         )
-        for _ in range(98):
-            new_population.append(create_child(top_ten, population))
-        population = new_population
 
-    # Evaluate the final generation and save its best individual.
+    for _ in range(98):
+        new_population.append(create_child(top_ten, population))
+
+    population = new_population
+    # Evaluate the final generation and save its best individuals.
     phase = "final evaluation"
-    top_ten, _, population = select_parents(
+    top_ten, _, population, fitnesses = select_parents(
         population,
         progress_callback=lambda increment: report_progress(increment, phase),
     )
+
     print()
+    save_population(top_ten, population, fitnesses, model_path)
     save_parameters(population[top_ten[0]], model_path)
